@@ -1,100 +1,122 @@
 import argparse
 import torch
+import os
 
 from accelerate import Accelerator
 from torch.utils.data import DataLoader
 
-from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
-
-from peft import LoraConfig, get_peft_model, TaskType
-
 from data import load_split, SLTDataset, make_collate_fn
+from qwen_lora import build_processor, build_model_with_lora
+from train_loop import train
 
 
-def main():
-
+def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--json", required=True)
     parser.add_argument("--root_dir", default="")
-    parser.add_argument("--split", default="train")
 
-    parser.add_argument("--model", default="Qwen/Qwen2-VL-2B-Instruct")
+    parser.add_argument("--model", default="Qwen/Qwen3-VL-2B-Instruct")
 
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--grad_accum", type=int, default=8)
     parser.add_argument("--epochs", type=int, default=1)
-
     parser.add_argument("--lr", type=float, default=1e-4)
 
-    parser.add_argument("--fps", type=float, default=24)
+    # dataloader
+    parser.add_argument("--num_workers", type=int, default=2)
 
-    args = parser.parse_args()
+    # lora (kept minimal but configurable)
+    parser.add_argument("--lora_r", type=int, default=16)
+    parser.add_argument("--lora_alpha", type=int, default=32)
+    parser.add_argument("--lora_dropout", type=float, default=0.05)
+
+    # logging
+    parser.add_argument("--log_every", type=int, default=10)
+    
+    parser.add_argument("--output_dir", default="checkpoints")
+    parser.add_argument("--resume", default="")
+
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
 
     accelerator = Accelerator(mixed_precision="bf16")
 
-    samples = load_split(args.json, args.split, args.root_dir)
+    if accelerator.is_main_process:
+        os.makedirs(args.output_dir, exist_ok=True)
 
-    dataset = SLTDataset(samples)
+    # ----------------
+    # Data
+    # ----------------
+    train_samples = load_split(args.json, "train", args.root_dir)
+    val_samples = load_split(args.json, "dev", args.root_dir)
 
-    processor = AutoProcessor.from_pretrained(args.model)
-    tokenizer = processor.tokenizer
+    train_dataset = SLTDataset(train_samples)
+    val_dataset = SLTDataset(val_samples)
 
-    collate_fn = make_collate_fn(processor, tokenizer, args.fps)
+    processor, tokenizer = build_processor(args.model)
+    collate_fn = make_collate_fn(processor, tokenizer)
 
-    dataloader = DataLoader(
-        dataset,
+    train_loader = DataLoader(
+        train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=2,
-        collate_fn=collate_fn
+        num_workers=args.num_workers,
+        collate_fn=collate_fn,
+        pin_memory=True,
     )
 
-    model = Qwen3VLForConditionalGeneration.from_pretrained(
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        collate_fn=collate_fn,
+        pin_memory=True,
+    )
+
+    # ----------------
+    # Model + LoRA
+    # ----------------
+    model = build_model_with_lora(
         args.model,
-        torch_dtype=torch.bfloat16
+        dtype=torch.bfloat16,
+        r=args.lora_r,
+        lora_alpha=args.lora_alpha,
+        lora_dropout=args.lora_dropout,
     )
 
-    lora_config = LoraConfig(
-        r=16,
-        lora_alpha=32,
-        lora_dropout=0.05,
-        bias="none",
-        task_type=TaskType.CAUSAL_LM,
-        target_modules=[
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj"
-        ]
-    )
-
-    model = get_peft_model(model, lora_config)
+    if accelerator.is_main_process:
+        model.print_trainable_parameters()
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
-    model, optimizer, dataloader = accelerator.prepare(
-        model,
-        optimizer,
-        dataloader
+    # Prepare for DDP / mixed precision
+    model, optimizer, train_loader, val_loader = accelerator.prepare(
+        model, optimizer, train_loader, val_loader
     )
 
-    model.train()
+    # ----------------
+    # Train
+    # ----------------
+    train(
+        model=model,
+        optimizer=optimizer,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        accelerator=accelerator,
+        epochs=args.epochs,
+        grad_accum=args.grad_accum,
+        output_dir=args.output_dir,
+        resume_dir=args.resume,
+        log_every_updates=args.log_every,
+    )
 
-    optimizer.zero_grad()
-
-    for epoch in range(args.epochs):
-
-        for step, batch in enumerate(dataloader):
-
-            outputs = model(**batch)
-
-            loss = outputs.loss
-
-            accelerator.backward(loss)
-
-            if (step + 1) % args.grad_accum == 0:
-
-                optimizer.step()
-                optimizer.zero_grad()
+    if accelerator.is_main_process:
+        print("Done.")
 
 
 if __name__ == "__main__":
