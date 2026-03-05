@@ -1,7 +1,7 @@
 import os
 import torch
 from accelerate import Accelerator
-import tqdm
+from tqdm import tqdm
 
 
 def _move_batch_to_device(batch, device):
