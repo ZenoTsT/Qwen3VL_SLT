@@ -41,7 +41,7 @@ srun accelerate launch \
     --mixed_precision bf16 \
     src/train.py \
     --json /homes/ztesta/Qwen3VL_SLT/data/phoenix_dataset.json
-    --root_dir /work/tesi_ztesta/datasets/PHOENIX-2014-T-release-v3/PHOENIX-2014-T \
+    --root_dir /work/tesi_ztesta/PHOENIX-2014-T-release-v3/PHOENIX-2014-T \
     --batch_size 1 \
     --grad_accum 8 \
     --epochs 5 \
