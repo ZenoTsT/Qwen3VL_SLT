@@ -42,9 +42,6 @@ def parse_args():
 
 def main():
     args = parse_args()
-    
-    print(f"[debug] root_dir arg = '{args.root_dir}'")
-    print(f"[debug] json arg = '{args.json}'")
 
     accelerator = Accelerator(mixed_precision="bf16")
 
