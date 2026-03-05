@@ -37,10 +37,12 @@ def load_split(json_path: str, split: str, root_dir: str = "") -> List[Sample]:
 
     for ex in items:
 
-        pattern = ex["video_path"]
+        pattern = ex["video_path"].lstrip("/")
 
         if root_dir:
             pattern = os.path.join(root_dir, pattern)
+
+        pattern = os.path.normpath(pattern)
 
         frames = sorted(glob.glob(pattern))
 
