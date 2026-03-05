@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=spamo_how2sign
+#SBATCH --job-name=train_phoenix
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
 #SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=48G
+#SBATCH --mem=24G
 #SBATCH --time=24:00:00
 #SBATCH --account=tesi_ztesta
 #SBATCH --partition=all_usr_prod
@@ -14,7 +14,6 @@ set -euo pipefail
 
 echo "START JOB $(date)"
 echo "NODE: $(hostname)"
-echo "GPUS: $SLURM_GPUS"
 
 # -------------------------
 # Environment
