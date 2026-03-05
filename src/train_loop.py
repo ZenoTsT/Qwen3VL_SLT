@@ -1,6 +1,7 @@
 import os
 import torch
 from accelerate import Accelerator
+import tqdm
 
 
 def _move_batch_to_device(batch, device):
@@ -90,6 +91,18 @@ def train(
     optimizer.zero_grad(set_to_none=True)
 
     for epoch in range(start_epoch, epochs):
+        
+        if accelerator.is_main_process:
+            print(f"\n[epoch] {epoch}/{epochs-1} | steps={len(train_loader)} | best_val={best_val:.4f}")
+            
+        # -------- progress bar -------- 
+        train_total = len(train_loader.dataset) # per-rank totals (so ~ dataset/num_gpus)
+        train_pbar = tqdm(
+            total=train_total,
+            disable=not accelerator.is_main_process,
+            desc=f"train epoch {epoch}",
+            dynamic_ncols=True,)
+        
         # -------- TRAIN --------
         model.train()
         for step, batch in enumerate(train_loader):
@@ -98,6 +111,11 @@ def train(
             out = model(**batch)
             loss = out.loss / grad_accum
             accelerator.backward(loss)
+            
+            # -------- progress bar --------
+            if accelerator.is_main_process:
+                train_pbar.update(batch["input_ids"].shape[0])
+                train_pbar.set_postfix(loss=f"{loss.item()*grad_accum:.3f}",upd=global_update)
 
             if (step + 1) % grad_accum == 0:
                 optimizer.step()
@@ -107,6 +125,9 @@ def train(
                 if accelerator.is_main_process and (global_update % log_every_updates == 0):
                     print(f"[train] epoch={epoch} update={global_update} loss={(loss.item()*grad_accum):.4f}")
 
+        if accelerator.is_main_process:
+            train_pbar.close()
+    
         # -------- VALIDATION --------
         accelerator.wait_for_everyone()
         val_loss = evaluate(model, val_loader, accelerator)
@@ -133,6 +154,15 @@ def train(
     
 @torch.no_grad()
 def evaluate(model, val_loader, accelerator: Accelerator):
+    
+    # -------- progress bar -------- 
+    val_total = len(val_loader.dataset)
+    val_pbar = tqdm(
+        total=val_total,
+        disable=not accelerator.is_main_process,
+        desc="val",
+        dynamic_ncols=True,)
+    
     model.eval()
     losses = []
 
@@ -140,10 +170,18 @@ def evaluate(model, val_loader, accelerator: Accelerator):
         batch = _move_batch_to_device(batch, accelerator.device)
         out = model(**batch)
         loss = out.loss.detach()
+        
+        # -------- progress bar -------- 
+        if accelerator.is_main_process:
+            val_pbar.update(batch["input_ids"].shape[0])
+            val_pbar.set_postfix(loss=f"{loss.item():.3f}")
 
         # gather across processes (multi-GPU)
         loss = accelerator.gather(loss)
         losses.append(loss)
+
+    if accelerator.is_main_process:
+        val_pbar.close()
 
     if not losses:
         return float("nan")

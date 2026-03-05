@@ -2,14 +2,14 @@
 #   --model Qwen/Qwen3-VL-2B-Instruct \
 #   --json /path/to/dataset.json \
 #   --split train \
-#   --n 1 \
+#   --n 2 \
 #   --root_dir /optional/prefix
 
 # python scripts/test_collate_fn.py \
 #   --model Qwen/Qwen3-VL-2B-Instruct \
 #   --json /Users/zenotesta/Documents/GitHub/Qwen3VL_SLT/data/phoenix_dataset.json \
 #   --split train \
-#   --n 1 \
+#   --n 2 \
 #   --root_dir /Users/zenotesta/Desktop/Tirocinio/Datasets/PHOENIX-2014-T-release-v3/PHOENIX-2014-T
 
 # test_collate_fn.py

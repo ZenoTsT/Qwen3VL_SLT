@@ -46,6 +46,8 @@ srun accelerate launch \
     --grad_accum 8 \
     --epochs 5 \
     --num_workers 8 \
-    --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix
+    --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix \
+    --orig_fps 25 \
+    --target_fps 12 
 
 echo "END JOB $(date)"

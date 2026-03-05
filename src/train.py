@@ -34,6 +34,11 @@ def parse_args():
     # logging
     parser.add_argument("--log_every", type=int, default=10)
     
+    # FPS sampling
+    parser.add_argument("--orig_fps", type=int)
+    parser.add_argument("--target_fps", type=int)
+    
+    # Checkpoints
     parser.add_argument("--output_dir", default="checkpoints")
     parser.add_argument("--resume", default="")
 
@@ -51,8 +56,8 @@ def main():
     # ----------------
     # Data
     # ----------------
-    train_samples = load_split(args.json, "train", args.root_dir)
-    val_samples = load_split(args.json, "dev", args.root_dir)
+    train_samples = load_split(args.json, "train", args.root_dir, args.target_fps, args.orig_fps)
+    val_samples = load_split(args.json, "dev", args.root_dir, args.target_fps, args.orig_fps)
 
     train_dataset = SLTDataset(train_samples)
     val_dataset = SLTDataset(val_samples)

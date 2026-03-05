@@ -26,7 +26,7 @@ class Sample:
 # JSON loading
 # ---------------------------
 
-def load_split(json_path: str, split: str, root_dir: str = "") -> List[Sample]:
+def load_split(json_path: str, split: str, root_dir: str = "", target_fps: int = 0, source_fps: int = 25) -> List[Sample]:
 
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -48,6 +48,10 @@ def load_split(json_path: str, split: str, root_dir: str = "") -> List[Sample]:
 
         if len(frames) == 0:
             raise RuntimeError(f"No frames found for pattern {pattern}")
+        
+        if target_fps and target_fps < source_fps:
+            stride = max(1, round(source_fps / target_fps)) 
+            frames = frames[::stride]
 
         samples.append(
             Sample(
@@ -170,9 +174,13 @@ def make_collate_fn(processor, tokenizer):
                     print(f"\n[collate] process_vision_info: n_videos={n_vid}, n_frames_in_first_video={n_frames}")
                 except Exception as e:
                     print(f"\n[collate] process_vision_info: could not introspect structure: {type(video_inputs)} err={e}")
-
-        # The Qwen processor converts input images and texts in tensors and tokens
-        # In this way we can give the input batch to Qwen 
+                    
+        # The Qwen processor converts:
+        # - the prompt strings (texts) into input_ids + attention_mask
+        # - the videos into vision tensors (pixel_values_videos + video_grid_thw, etc.)
+        #
+        # padding=True is REQUIRED to make a batch tensor for input_ids (otherwise lengths differ).
+        # Here, the processor pads ONLY the prompt part (not our target).
         proc = processor(
             text=texts,
             videos=video_inputs_batch,
@@ -190,88 +198,77 @@ def make_collate_fn(processor, tokenizer):
             # test prompt length (padded) vs true prompt length for sample
             print(f"[collate] input_ids.shape={tuple(proc['input_ids'].shape)} attention_mask.shape={tuple(proc['attention_mask'].shape)}")
 
-        input_ids = proc["input_ids"]
-        attention_mask = proc["attention_mask"] # Tells which token are paddings (right now, no one)
+        input_ids = proc["input_ids"]                # (B, Pmax)
+        attention_mask = proc["attention_mask"]      # (B, Pmax) 1=real token, 0=prompt padding
 
-        new_input_ids = []
-        new_attention = []
-        new_labels = []
+        B, Pmax = input_ids.shape
 
-        for i, ex in enumerate(batch):
-
-            prompt_len = int(attention_mask[i].sum().item())    # Calculate where prompt finish
-            prompt_ids = input_ids[i, :prompt_len]              # I take only the prompt
-
-            # I take the target ground truth and I convert it into tokens
+        # 1) Tokenize ALL targets and store them as 1D tensors (one per sample)
+        tgt_ids_list = []
+        tgt_lens = []
+        for ex in batch:
             tgt_ids = tokenizer(
                 ex["target"],
                 add_special_tokens=False,
                 return_tensors="pt"
-            )["input_ids"][0]       # I take the tensor (input_ids field of the tokenizer)
+            )["input_ids"][0]  # [0] because tokenizer returns a batch dimension (1, L)
 
-            eos = torch.tensor([tokenizer.eos_token_id], dtype=tgt_ids.dtype)   # I take a End Of Sequence token
-            tgt_ids = torch.cat([tgt_ids, eos], dim=0)      # I concat it to my ground truth
-            ids = torch.cat([prompt_ids, tgt_ids], dim=0)   # And I concat everything in a single prompt (Text tokens + visual placeholders (prompt_ids) + Ground truth)
+            # Add EOS at end of the target
+            eos = torch.tensor([tokenizer.eos_token_id], dtype=tgt_ids.dtype)
+            tgt_ids = torch.cat([tgt_ids, eos], dim=0)
 
-            labels = torch.cat(
-                [torch.full_like(prompt_ids, -100), tgt_ids],   # full_like create a vector filled with -100 with the lenght of prompt_ids
-                dim=0
-            )
-            
+            tgt_ids_list.append(tgt_ids)
+            tgt_lens.append(int(tgt_ids.numel()))
+
+        Tmax = max(tgt_lens) if len(tgt_lens) > 0 else 0
+        final_len = Pmax + Tmax
+
+        # 2) Allocate the final tensors for the whole batch
+        input_ids2 = torch.full((B, final_len), pad_id, dtype=input_ids.dtype)  # Create the final tensor that will contain the whole sequence (all padding for now)
+        attn2 = torch.zeros((B, final_len), dtype=attention_mask.dtype)         # Create the final tensor that will contain the whole attention mask (all 0 for now)
+        labels2 = torch.full((B, final_len), -100, dtype=input_ids.dtype)       # Create the final tensor that will contain the whole masking + groundh truth
+
+        # Copy prompt tensors (already padded) into the first part
+        input_ids2[:, :Pmax] = input_ids    # for each row [:, X], i modify all the column until Pmax [X, :Pmax] (I insert the prompt)
+        attn2[:, :Pmax] = attention_mask    # same with the attention_mask
+
+        # 3) Copy each target into the tail (after prompt)
+        for i, tgt_ids in enumerate(tgt_ids_list):
+            L = int(tgt_ids.numel())                # lenght of the ground truth
+            input_ids2[i, Pmax:Pmax + L] = tgt_ids  # I first put the ground truth after the prompt + padding (of the prompt)
+            attn2[i, Pmax:Pmax + L] = 1             # I put 1 in attention mask
+            labels2[i, Pmax:Pmax + L] = tgt_ids     # I don't put -100 in these position (ground truth uncovered)
+
             if DEBUG and i == 0:
-                print(f"\n[collate] sample0 prompt_len={prompt_len}")
-                print(f"[collate] sample0 tgt_len_tokens(with eos)={tgt_ids.numel()}")
-                print(f"[collate] sample0 ids_len={ids.numel()} labels_len={labels.numel()}")
-                # check labels masking: how many -100 and how many supervised token 
-                num_ignored = int((labels == -100).sum().item())
-                num_supervised = int((labels != -100).sum().item())
+                # prompt_len is the "true" prompt length (not counting prompt padding)
+                prompt_len = int(attention_mask[i].sum().item())
+
+                print(f"\n[collate] sample0 prompt_len(true)={prompt_len} (Pmax={Pmax})")
+                print(f"[collate] sample0 tgt_len_tokens(with eos)={L} (Tmax={Tmax})")
+                print(f"[collate] sample0 final_len={final_len}")
+
+                num_ignored = int((labels2[i] == -100).sum().item())
+                num_supervised = int((labels2[i] != -100).sum().item())
+
+                active = (labels2[i] != -100).nonzero(as_tuple=True)[0]
+
+                print(f"[collate] supervised span start={active.min().item()} end={active.max().item()}")
+                print(f"[collate] supervised tokens count={active.numel()}")
+                print(f"[collate] expected target len={L}")
+                print(f"[collate] Pmax={Pmax}")
                 print(f"[collate] sample0 labels: ignored={num_ignored} supervised={num_supervised}")
 
-            attn = torch.ones_like(ids) # The attention mask is all 1 since we have not added the padding yet
-
-            new_input_ids.append(ids)   # The full prompts
-            new_attention.append(attn)  # All the attention masks (tell that until here we don't have padding)
-            new_labels.append(labels)   # The vector filled with -100 to not calculate the loss on prompt tokens
-
-        max_len = max(x.size(0) for x in new_input_ids) # I take the longhest prompt
-
-        # Function to apply padding
-        def pad_1d(x, value):
-
-            if x.size(0) == max_len:
-                return x
-
-            pad = torch.full((max_len - x.size(0),), value, dtype=x.dtype)
-
-            return torch.cat([x, pad], dim=0)  # I apply the padding
-
-        # I apply the padding to the full prompt
-        input_ids2 = torch.stack(
-            [pad_1d(x, pad_id) for x in new_input_ids],
-            dim=0
-        )
-
-        # I apply the padding to the att mask (tell that until here we don't have padding)
-        attn2 = torch.stack(
-            [pad_1d(x, 0) for x in new_attention],
-            dim=0
-        )
-
-        # I apply the padding to the prompts masking
-        labels2 = torch.stack(
-            [pad_1d(x, -100) for x in new_labels],
-            dim=0
-        )
-
+        # Replace text tensors in proc; keep vision tensors from proc
         proc["input_ids"] = input_ids2
         proc["attention_mask"] = attn2
         proc["labels"] = labels2
-        
+
         if DEBUG:
-            print("\n[collate] after manual padding:")
+            print("\n[collate] after fixed padding (single pass):")
             print(f"[collate] input_ids2={tuple(input_ids2.shape)} attn2={tuple(attn2.shape)} labels2={tuple(labels2.shape)}")
-            # sanity: attention_mask must be 0 where input_ids is pad (not always perfect, but should match your padding)
-            # and labels should be -100 where attn is 0
+
+            # sanity checks:
+            # - pad positions in attention mask should correspond to either prompt padding or target padding
             pad_positions = (attn2 == 0).sum().item()
             ignored_on_pad = ((attn2 == 0) & (labels2 == -100)).sum().item()
             print(f"[collate] pad_positions={int(pad_positions)}, pad_positions_with_labels_-100={int(ignored_on_pad)}")
