@@ -1,3 +1,15 @@
+# Se voglio testare in locale:
+# python src/test.py \
+#   --model Qwen/Qwen3-VL-2B-Instruct \
+#   --json /Users/zenotesta/Documents/GitHub/Qwen3VL_SLT/data/phoenix_dataset.json \
+#   --root_dir /Users/zenotesta/Desktop/Tirocinio/Datasets/PHOENIX-2014-T-release-v3/PHOENIX-2014-T \
+#   --ckpt_dir "" \
+#   --orig_fps 25 \
+#   --target_fps 12 \
+#   --max_new_tokens 128 \
+#   --num_beams 1 \
+#   --limit 1
+
 import argparse
 import os
 import torch
@@ -87,6 +99,7 @@ def main():
         max_new_tokens=args.max_new_tokens,
         num_beams=args.num_beams,
         limit=args.limit,
+        target_fps=args.target_fps,
     )
 
     if accelerator.is_main_process:

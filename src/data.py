@@ -93,7 +93,7 @@ class SLTDataset(Dataset):
 # attention_mask: “Mask to avoid performing attention on padding token indices… 1 = non masked, 0 = masked” 
 # labels: “Labels for computing the masked language modeling loss… Tokens set to -100 are ignored (masked)”
 
-def make_collate_fn(processor, tokenizer):
+def make_collate_fn(processor, tokenizer, video_fps: int):
 
     # Initialize (if exists) the padding
     if tokenizer.pad_token_id is not None:
@@ -107,6 +107,7 @@ def make_collate_fn(processor, tokenizer):
         if DEBUG:
             print(f"\n[collate] batch_size={len(batch)}")
             print(f"[collate] pad_id={pad_id}, eos_id={tokenizer.eos_token_id}, pad_token_id={tokenizer.pad_token_id}")
+            print(f"[collate] video_fps={video_fps}")
             for bi, ex in enumerate(batch):
                 print(f"[collate] sample[{bi}] #frames={len(ex['frame_paths'])}, target_len_chars={len(ex['target'])}")
 
@@ -155,21 +156,39 @@ def make_collate_fn(processor, tokenizer):
         # messages_list -> list of Qwen messages
         # texts -> list of Qwen inputs
 
-        image_inputs_batch = []
         video_inputs_batch = []
+        video_metadata_batch = []
+        video_kwargs = None
 
-        for messages in messages_list:
+        for ex, messages in zip(batch, messages_list):
             
             # process_vision_info takes the paths in the fields "video" and "image" of a message
-            # and convert them into PIL images (in this case image_inputs will be None)
-            image_inputs, video_inputs = process_vision_info(messages) 
-            video_inputs_batch.append(video_inputs)
+            # and convert them into tensors / metadata for Qwen (in this case image_inputs will be None)
+            # metadata nedd to be changed (default fps = 2, moreover we have sampled)
+            image_inputs, video_inputs, current_video_kwargs = process_vision_info(
+                messages,
+                return_video_metadata=True,
+                return_video_kwargs=True,
+            )
+                
+            # Each sample has one video
+            video_kwargs = current_video_kwargs
+            v = video_inputs[0]
+            video_tensor, video_metadata = v
+            # Fix video metadata manually so they match the frames and FPS we are actually passing
+            video_metadata["fps"] = float(video_fps)
+            video_metadata["total_num_frames"] = float(len(ex["frame_paths"]))
+            video_metadata["frames_indices"] = list(range(len(ex["frame_paths"])))
+
+            video_inputs_batch.append(video_tensor)
+            video_metadata_batch.append(video_metadata)
             
             if DEBUG and len(video_inputs_batch) == 1:
                 try:
-                    n_vid = len(video_inputs) if video_inputs is not None else 0
-                    n_frames = len(video_inputs[0]) if (video_inputs and len(video_inputs) > 0) else 0
-                    print(f"\n[collate] process_vision_info: n_videos={n_vid}, n_frames_in_first_video={n_frames}")
+                    n_frames = len(ex["frame_paths"])
+                    print(f"\n[collate] process_vision_info: n_frames_in_first_video={n_frames}")
+                    print(f"[collate] first video_kwargs={video_kwargs}")
+                    print(f"[collate] first fixed video_metadata={video_metadata}")
                 except Exception as e:
                     print(f"\n[collate] process_vision_info: could not introspect structure: {type(video_inputs)} err={e}")
                     
@@ -182,8 +201,11 @@ def make_collate_fn(processor, tokenizer):
         proc = processor(
             text=texts,
             videos=video_inputs_batch,
+            video_metadata=video_metadata_batch,
             padding=True,
             return_tensors="pt",
+            do_resize=False,    # https://github.com/QwenLM/Qwen3-VL/blob/main/README.md " Note: Since qwen-vl-utils already resizes images/videos, pass do_resize=False to the processor to avoid duplicate resizing."
+            **video_kwargs,
         )
         
         if DEBUG:

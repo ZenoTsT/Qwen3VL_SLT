@@ -35,6 +35,7 @@ def generate_one(
     accelerator: Accelerator,
     max_new_tokens: int = 64,
     num_beams: int = 1,
+    target_fps: int = 0,
 ) -> str:
 
     # Build video URIs
@@ -43,7 +44,7 @@ def generate_one(
         ap = os.path.abspath(p)
         video_uris.append("file://" + ap)
 
-    # Build Qwen messages
+    # Build Qwen messages    
     messages = [
         {
             "role": "user",
@@ -62,14 +63,33 @@ def generate_one(
     )
 
     # Vision processing
-    image_inputs, video_inputs = process_vision_info(messages)
+    image_inputs, video_inputs, video_kwargs = process_vision_info(
+        messages,
+        return_video_metadata=True,
+        return_video_kwargs=True,
+    )
+    # Collect video data and metadata
+    videos = []
+    video_metadatas = []
+    for v in video_inputs:
+        video_tensor, video_metadata = v
+        videos.append(video_tensor)
+        video_metadatas.append(video_metadata)
+    # Fix video metadata manually so they match the frames and FPS we are actually passing
+    for i in range(len(video_metadatas)):
+        video_metadatas[i]["fps"] = float(target_fps) if target_fps and target_fps > 0 else None
+        video_metadatas[i]["total_num_frames"] = float(len(frame_paths))
+        video_metadatas[i]["frames_indices"] = list(range(len(frame_paths)))
 
     # Processor -> tensors (single sample)
     proc = processor(
         text=[text],
-        videos=[video_inputs],
+        videos=videos,
+        video_metadata=video_metadatas,
         padding=True,
         return_tensors="pt",
+        do_resize=False,    # https://github.com/QwenLM/Qwen3-VL/blob/main/README.md " Note: Since qwen-vl-utils already resizes images/videos, pass do_resize=False to the processor to avoid duplicate resizing."
+        **video_kwargs,
     )
 
     # Move to accelerator device
@@ -106,6 +126,7 @@ def inference(
     max_new_tokens: int = 128,
     num_beams: int = 1,
     limit: int = 0,
+    target_fps: int = 0,
 ) -> Tuple[List[str], List[str], dict]:
     
     # 1) Load adapter
@@ -147,6 +168,7 @@ def inference(
             accelerator=accelerator,
             max_new_tokens=max_new_tokens,
             num_beams=num_beams,
+            target_fps=target_fps,
         )
 
         preds.append(pred)

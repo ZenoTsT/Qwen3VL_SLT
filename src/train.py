@@ -63,7 +63,9 @@ def main():
     val_dataset = SLTDataset(val_samples)
 
     processor, tokenizer = build_processor(args.model)
-    collate_fn = make_collate_fn(processor, tokenizer)
+    
+    video_fps = args.target_fps if args.target_fps and args.target_fps > 0 else args.orig_fps
+    collate_fn = make_collate_fn(processor, tokenizer, video_fps)
 
     train_loader = DataLoader(
         train_dataset,
