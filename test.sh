@@ -42,10 +42,8 @@ srun accelerate launch \
     src/test.py \
     --json /homes/ztesta/Qwen3VL_SLT/data/phoenix_dataset.json \
     --root_dir /work/tesi_ztesta/PHOENIX-2014-T-release-v3/PHOENIX-2014-T \
-    --ckpt_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix/best \
+    --ckpt_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix/single_gpu/best \
     --orig_fps 25 \
     --target_fps 12 \
     --max_new_tokens 128 \
     --num_beams 1
-
-echo "END JOB $(date)"
