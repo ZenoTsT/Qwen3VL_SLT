@@ -1,51 +1,46 @@
-# python test_collate_fn.py \
-#   --model Qwen/Qwen3-VL-2B-Instruct \
-#   --json /path/to/dataset.json \
-#   --split train \
-#   --n 2 \
-#   --root_dir /optional/prefix
-
 # python scripts/test_collate_fn.py \
 #   --model Qwen/Qwen3-VL-2B-Instruct \
 #   --json /Users/zenotesta/Documents/GitHub/Qwen3VL_SLT/data/phoenix_dataset.json \
 #   --split train \
 #   --n 2 \
-#   --root_dir /Users/zenotesta/Desktop/Tirocinio/Datasets/PHOENIX-2014-T-release-v3/PHOENIX-2014-T
+#   --root_dir /Users/zenotesta/Desktop/Tirocinio/Datasets/PHOENIX-2014-T-release-v3/PHOENIX-2014-T \
+#   --orig_fps 25 \
+#   --target_fps 12
 
-# test_collate_fn.py
 import os
+import sys
 import argparse
 import torch
 
-from transformers import AutoProcessor, Qwen3VLForConditionalGeneration  # fallback generic
-# In alcuni setup Qwen3-VL ha classi dedicate; se ti dà import error, usa AutoModelForVision2SeqLM
+from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
 
-from qwen_vl_utils import process_vision_info
-
-import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-# importa la tua collate
-# se la collate sta in data.py:
-from src.data import make_collate_fn
+# importa la tua load_split + collate
+from src.data import load_split, make_collate_fn
 
 
-def build_batch_from_json(json_path, split, n, root_dir=""):
-    # usa la tua load_split + dataset logic se ce l'hai
-    import json, glob
-    with open(json_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    items = data["splits"][split][:n]
+def build_batch_from_json(json_path, split, n, root_dir="", target_fps=0, orig_fps=25):
+    # Usa la tua load_split reale, così il test riflette davvero il training
+    samples = load_split(
+        json_path=json_path,
+        split=split,
+        root_dir=root_dir,
+        target_fps=target_fps,
+        source_fps=orig_fps,
+    )
+
+    samples = samples[:n]
+
     batch = []
-    for ex in items:
-        pattern = ex["video_path"]
-        if root_dir:
-            pattern = os.path.join(root_dir, pattern)
-        frames = sorted(glob.glob(pattern))
-        if len(frames) == 0:
-            raise RuntimeError(f"No frames for pattern: {pattern}")
-        batch.append({"frame_paths": frames, "target": ex["sentence"]})
+    for s in samples:
+        batch.append({
+            "frame_paths": s.frame_paths,
+            "target": s.target,
+        })
+
     return batch
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -54,6 +49,8 @@ def main():
     ap.add_argument("--split", default="train")
     ap.add_argument("--n", type=int, default=1, help="how many samples to test in the batch")
     ap.add_argument("--root_dir", default="")
+    ap.add_argument("--orig_fps", type=int, default=25)
+    ap.add_argument("--target_fps", type=int, default=0)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = ap.parse_args()
 
@@ -65,7 +62,6 @@ def main():
     tokenizer = processor.tokenizer
 
     print("[test] loading model...")
-    # Per Qwen3-VL
     model = Qwen3VLForConditionalGeneration.from_pretrained(
         args.model,
         torch_dtype=torch.bfloat16 if args.device.startswith("cuda") else torch.float32,
@@ -73,10 +69,20 @@ def main():
     model.eval()
 
     print("[test] building batch from json...")
-    batch = build_batch_from_json(args.json, args.split, args.n, root_dir=args.root_dir)
+    batch = build_batch_from_json(
+        json_path=args.json,
+        split=args.split,
+        n=args.n,
+        root_dir=args.root_dir,
+        target_fps=args.target_fps,
+        orig_fps=args.orig_fps,
+    )
+
+    video_fps = args.target_fps if args.target_fps and args.target_fps > 0 else args.orig_fps
+    print(f"[test] video_fps passed to collate: {video_fps}")
 
     print("[test] running collate...")
-    collate = make_collate_fn(processor, tokenizer)
+    collate = make_collate_fn(processor, tokenizer, video_fps)
     proc = collate(batch)
 
     # sposta su device
@@ -89,6 +95,7 @@ def main():
     assert proc["input_ids"].shape == proc["attention_mask"].shape == proc["labels"].shape, "shape mismatch"
     assert torch.isfinite(proc["input_ids"].float()).all(), "non-finite in input_ids"
     assert torch.isfinite(proc["attention_mask"].float()).all(), "non-finite in attention_mask"
+
     # labels can contain -100; check others are finite
     valid = proc["labels"] != -100
     if valid.any():
@@ -97,10 +104,11 @@ def main():
     print("[test] forward pass (loss)...")
     with torch.no_grad():
         out = model(**proc)
+
     print("[test] loss:", float(out.loss.detach().cpu()))
     print("[test] logits shape:", tuple(out.logits.shape))
-
     print("[test] OK")
+
 
 if __name__ == "__main__":
     main()

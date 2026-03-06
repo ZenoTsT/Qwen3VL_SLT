@@ -204,7 +204,7 @@ def make_collate_fn(processor, tokenizer, video_fps: int):
             video_metadata=video_metadata_batch,
             padding=True,
             return_tensors="pt",
-            do_resize=False,    # https://github.com/QwenLM/Qwen3-VL/blob/main/README.md " Note: Since qwen-vl-utils already resizes images/videos, pass do_resize=False to the processor to avoid duplicate resizing."
+            # do_resize=False,    # https://github.com/QwenLM/Qwen3-VL/blob/main/README.md " Note: Since qwen-vl-utils already resizes images/videos, pass do_resize=False to the processor to avoid duplicate resizing."
             **video_kwargs,
         )
         
