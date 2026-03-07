@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=24G
-#SBATCH --time=08:00:00
+#SBATCH --time=04:00:00
 #SBATCH --account=tesi_ztesta
 #SBATCH --partition=all_usr_prod
 #SBATCH --constraint=gpu_A40_45G|gpu_L40S_45G|gpu_RTX_A5000_24G
@@ -20,7 +20,7 @@ echo "NODE: $(hostname)"
 # -------------------------
 
 module load anaconda3/2023.09-0-none-none
-source activate qwen3vl_env
+source activate flash_test
 
 # working directory
 cd /homes/ztesta/Qwen3VL_SLT || exit 1

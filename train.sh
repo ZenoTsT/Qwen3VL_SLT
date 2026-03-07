@@ -20,7 +20,7 @@ echo "NODE: $(hostname)"
 # -------------------------
 
 module load anaconda3/2023.09-0-none-none
-source activate qwen3vl_env
+source activate flash_test
 
 # working directory
 cd /homes/ztesta/Qwen3VL_SLT || exit 1
