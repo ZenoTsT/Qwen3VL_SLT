@@ -2,7 +2,7 @@
 #SBATCH --job-name=train_phoenix
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:3
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=24G
 #SBATCH --time=24:00:00
@@ -37,7 +37,7 @@ export HF_HOME=/work/tesi_ztesta/hf_cache
 # -------------------------
 
 srun accelerate launch \
-    --num_processes 2 \
+    --num_processes 3 \
     --mixed_precision bf16 \
     src/train.py \
     --json /homes/ztesta/Qwen3VL_SLT/data/phoenix_dataset.json \
@@ -46,7 +46,7 @@ srun accelerate launch \
     --grad_accum 8 \
     --epochs 5 \
     --num_workers 8 \
-    --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix \
+    --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix/three_gpu_maxframe \
     --orig_fps 25 \
     --target_fps 8
 
