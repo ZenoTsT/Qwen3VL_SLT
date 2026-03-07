@@ -31,6 +31,8 @@ def build_model_with_lora(
         torch_dtype=dtype,
         attn_implementation="flash_attention_2",
     )
+    model.gradient_checkpointing_enable()   # Giusto per prova 
+    model.config.use_cache = False          # Giusto per prova 
 
     lora_config = LoraConfig(
         r=r,
