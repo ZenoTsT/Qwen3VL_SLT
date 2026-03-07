@@ -23,9 +23,13 @@ def build_model_with_lora(
     Loads Qwen3-VL and applies LoRA (trainable adapters).
     Returns a PEFT-wrapped model.
     """
+    
+    # https://huggingface.co/unsloth/Qwen3-VL-2B-Instruct-1M-GGUF/blame/d21e3d7295cbb0717c92997e10d1c069cb12969d/README.md
+    # "We recommend enabling flash_attention_2 for better acceleration and memory saving, especially in multi-image and video scenarios."
     model = Qwen3VLForConditionalGeneration.from_pretrained(
         model_name,
         torch_dtype=dtype,
+        attn_implementation="flash_attention_2",
     )
 
     lora_config = LoraConfig(
