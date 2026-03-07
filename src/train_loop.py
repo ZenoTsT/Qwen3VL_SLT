@@ -45,12 +45,12 @@ def try_resume_best(model, optimizer, accelerator: Accelerator, output_dir: str,
 
     # Load adapters
     try:
-        model.load_adapter(ckpt_dir, adapter_name="default", is_trainable=True)
-        model.set_adapter("default")
+        unwrapped = accelerator.unwrap_model(model)
+        unwrapped.load_adapter(ckpt_dir, adapter_name="default", is_trainable=True)
+        unwrapped.set_adapter("default")
     except Exception as e:
         if accelerator.is_main_process:
             print(f"[resume] WARNING: could not load adapter from {ckpt_dir}: {e}")
-        pass
 
     state = torch.load(state_path, map_location="cpu")
     optimizer.load_state_dict(state["optimizer"])
