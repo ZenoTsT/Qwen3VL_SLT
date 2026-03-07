@@ -35,7 +35,7 @@ def generate_one(
     accelerator: Accelerator,
     max_new_tokens: int = 64,
     num_beams: int = 1,
-    target_fps: int = 0,
+    effective_fps: float = 2.0,
 ) -> str:
 
     # Build video URIs
@@ -77,7 +77,7 @@ def generate_one(
         video_metadatas.append(video_metadata)
     # Fix video metadata manually so they match the frames and FPS we are actually passing
     for i in range(len(video_metadatas)):
-        video_metadatas[i]["fps"] = float(target_fps) if target_fps and target_fps > 0 else None
+        video_metadatas[i]["fps"] = float(effective_fps)
         video_metadatas[i]["total_num_frames"] = float(len(frame_paths))
         video_metadatas[i]["frames_indices"] = list(range(len(frame_paths)))
 
@@ -126,7 +126,6 @@ def inference(
     max_new_tokens: int = 128,
     num_beams: int = 1,
     limit: int = 0,
-    target_fps: int = 0,
 ) -> Tuple[List[str], List[str], dict]:
     
     # 1) Load adapter
@@ -168,7 +167,7 @@ def inference(
             accelerator=accelerator,
             max_new_tokens=max_new_tokens,
             num_beams=num_beams,
-            target_fps=target_fps,
+            effective_fps=ex["effective_fps"],
         )
 
         preds.append(pred)

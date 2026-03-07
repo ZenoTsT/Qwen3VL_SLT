@@ -1,3 +1,4 @@
+import math
 import os
 import glob
 import json
@@ -11,6 +12,7 @@ from qwen_vl_utils import process_vision_info
 
 
 PROMPT_TEXT = "Translate this sign language video to German."
+MAX_FRAMES = 64
 
 
 @dataclass
@@ -24,7 +26,7 @@ class Sample:
 # JSON loading
 # ---------------------------
 
-def load_split(json_path: str, split: str, root_dir: str = "", target_fps: int = 0, source_fps: int = 25) -> List[Sample]:
+def load_split(json_path: str, split: str, root_dir: str = "", target_fps: int = 2, source_fps: int = 25) -> List[Sample]:
 
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -49,13 +51,19 @@ def load_split(json_path: str, split: str, root_dir: str = "", target_fps: int =
         
         if target_fps and target_fps < source_fps:
             stride = max(1, round(source_fps / target_fps)) 
+            n_after = len(frames[::stride])
+            if n_after > MAX_FRAMES:
+                stride = max(stride, math.ceil(len(frames) / MAX_FRAMES))
             frames = frames[::stride]
+            effective_fps = round(source_fps / stride, 2)
 
+        ex_meta = dict(ex)
+        ex_meta["effective_fps"] = effective_fps
         samples.append(
             Sample(
                 frame_paths=frames,
                 target=ex["sentence"],
-                meta=ex
+                meta=ex_meta
             )
         )
 
@@ -81,6 +89,7 @@ class SLTDataset(Dataset):
         return {
             "frame_paths": s.frame_paths,
             "target": s.target,
+            "effective_fps": s.meta["effective_fps"],
         }
 
 
@@ -93,7 +102,7 @@ class SLTDataset(Dataset):
 # attention_mask: “Mask to avoid performing attention on padding token indices… 1 = non masked, 0 = masked” 
 # labels: “Labels for computing the masked language modeling loss… Tokens set to -100 are ignored (masked)”
 
-def make_collate_fn(processor, tokenizer, video_fps: int):
+def make_collate_fn(processor, tokenizer):
 
     # Initialize (if exists) the padding
     if tokenizer.pad_token_id is not None:
@@ -107,7 +116,7 @@ def make_collate_fn(processor, tokenizer, video_fps: int):
         if DEBUG:
             print(f"\n[collate] batch_size={len(batch)}")
             print(f"[collate] pad_id={pad_id}, eos_id={tokenizer.eos_token_id}, pad_token_id={tokenizer.pad_token_id}")
-            print(f"[collate] video_fps={video_fps}")
+            print(f"[collate] video_fps={float(batch[0]['effective_fps'])}")
             for bi, ex in enumerate(batch):
                 print(f"[collate] sample[{bi}] #frames={len(ex['frame_paths'])}, target_len_chars={len(ex['target'])}")
 
@@ -176,7 +185,7 @@ def make_collate_fn(processor, tokenizer, video_fps: int):
             v = video_inputs[0]
             video_tensor, video_metadata = v
             # Fix video metadata manually so they match the frames and FPS we are actually passing
-            video_metadata["fps"] = float(video_fps)
+            video_metadata["fps"] = float(ex["effective_fps"])
             video_metadata["total_num_frames"] = float(len(ex["frame_paths"]))
             video_metadata["frames_indices"] = list(range(len(ex["frame_paths"])))
 

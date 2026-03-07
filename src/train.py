@@ -65,7 +65,7 @@ def main():
     processor, tokenizer = build_processor(args.model)
     
     video_fps = args.target_fps if args.target_fps and args.target_fps > 0 else args.orig_fps
-    collate_fn = make_collate_fn(processor, tokenizer, video_fps)
+    collate_fn = make_collate_fn(processor, tokenizer)
 
     train_loader = DataLoader(
         train_dataset,

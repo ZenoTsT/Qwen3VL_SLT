@@ -5,7 +5,7 @@
 #   --n 2 \
 #   --root_dir /Users/zenotesta/Desktop/Tirocinio/Datasets/PHOENIX-2014-T-release-v3/PHOENIX-2014-T \
 #   --orig_fps 25 \
-#   --target_fps 12
+#   --target_fps 8
 
 import os
 import sys
@@ -37,6 +37,7 @@ def build_batch_from_json(json_path, split, n, root_dir="", target_fps=0, orig_f
         batch.append({
             "frame_paths": s.frame_paths,
             "target": s.target,
+            "effective_fps": s.meta["effective_fps"]
         })
 
     return batch
@@ -82,7 +83,7 @@ def main():
     print(f"[test] video_fps passed to collate: {video_fps}")
 
     print("[test] running collate...")
-    collate = make_collate_fn(processor, tokenizer, video_fps)
+    collate = make_collate_fn(processor, tokenizer)
     proc = collate(batch)
 
     # sposta su device
