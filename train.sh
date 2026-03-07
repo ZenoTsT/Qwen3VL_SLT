@@ -48,6 +48,6 @@ srun accelerate launch \
     --num_workers 8 \
     --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix/three_gpu_maxframe \
     --orig_fps 25 \
-    --target_fps 8
+    --target_fps 6
 
 echo "END JOB $(date)"
