@@ -4,7 +4,7 @@
 #SBATCH --error=logs/%x_%j.err
 #SBATCH --gres=gpu:3
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=24G
+#SBATCH --mem=64G
 #SBATCH --time=24:00:00
 #SBATCH --account=tesi_ztesta
 #SBATCH --partition=all_usr_prod
@@ -45,7 +45,7 @@ srun accelerate launch \
     --batch_size 1 \
     --grad_accum 8 \
     --epochs 5 \
-    --num_workers 8 \
+    --num_workers 4 \
     --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix/three_gpu_maxframe \
     --orig_fps 25 \
     --target_fps 6
