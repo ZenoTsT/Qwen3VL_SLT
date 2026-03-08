@@ -1,0 +1,72 @@
+-----------------------------------------
+
+MODEL Qwen3-VL-2B-Instruct
+
+-----------------------------------------
+
+EXPERIMENT 1
+
+batch_size = 1
+grad_accum = 8
+lr = 1e-4
+early_stopping = 3
+
+lora_r = 16
+lora_alpha = 32
+lora_dropout = 0.05
+
+target_fps = 6
+
+Results
+
+[val] epoch=0 avg_loss=1.7056 (best=inf)
+[val] epoch=1 avg_loss=1.6037 (best=1.7056)
+[val] epoch=2 avg_loss=1.5556 (best=1.6037)
+[val] epoch=3 avg_loss=1.5426 (best=1.5556)
+[val] epoch=4 avg_loss=1.5625 (best=1.5426) -> Overfit
+[val] epoch=5 avg_loss=1.5993 (best=1.5426)
+[val] epoch=6 avg_loss=1.6743 (best=1.5426)
+
+--- Example 0 ---
+GT  : regen und schnee lassen an den alpen in der nacht nach im norden und nordosten fallen hier und da schauer sonst ist das klar
+PRED: heute nacht regnet es im süden und osten hier und da im norden und westen ist es meist klar
+
+--- Example 1 ---
+GT  : am donnerstag regen in der nordhälfte in der südhälfte mal sonne mal wolken ähnliches wetter dann auch am freitag
+PRED: am tag im norden und osten hier und da regen im süden und westen auch kräftige schauer und gewitter
+
+--- Example 2 ---
+GT  : vom nordmeer zieht ein kräftiges tief heran und bringt uns ab den morgenstunden heftige schneefälle zum teil auch gefrierenden regen
+PRED: am tag im norden und osten teilweise kräftige schauer und gewitter die in der südhälfte auch kräftig sein können
+
+--- Example 3 ---
+GT  : sonnig geht es auch ins wochenende samstag ein herrlicher tag mit temperaturen bis siebzehn grad hier im westen
+PRED: am tag fünfzehn grad an der ostsee und bis zweiundzwanzig grad im südwesten
+
+--- Example 4 ---
+GT  : deutschland liegt morgen unter hochdruckeinfluss der die wolken weitgehend vertreibt
+PRED: am tag regnet es im norden und westen hier und da sonst ist es meist freundlich
+
+[test] METRICS
+[test] bleu1: 21.391966
+[test] bleu2: 12.830868
+[test] bleu3: 8.675948
+[test] bleu4: 6.365778
+[test] rougeL_f: 0.204172
+[test] num_samples=642
+[test] END
+
+-----------------------------------------
+
+EXPERIMENT 2
+
+batch_size = 1
+grad_accum = 16
+lr = 5e-5
+early_stopping = 3
+
+lora_r = 16
+lora_alpha = 32
+lora_dropout = 0.15
+
+target_fps = 8

@@ -20,8 +20,9 @@ def parse_args():
 
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--grad_accum", type=int, default=8)
-    parser.add_argument("--epochs", type=int, default=1)
-    parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--epochs", type=int, default=30)
+    parser.add_argument("--lr", type=float, default=5e-5)
+    parser.add_argument("--early_stopping", type=float, default=3)
 
     # dataloader
     parser.add_argument("--num_workers", type=int, default=2)
@@ -29,7 +30,7 @@ def parse_args():
     # lora (kept minimal but configurable)
     parser.add_argument("--lora_r", type=int, default=16)
     parser.add_argument("--lora_alpha", type=int, default=32)
-    parser.add_argument("--lora_dropout", type=float, default=0.05)
+    parser.add_argument("--lora_dropout", type=float, default=0.15)
 
     # logging
     parser.add_argument("--log_every", type=int, default=10)
@@ -120,6 +121,7 @@ def main():
         output_dir=args.output_dir,
         resume_dir=args.resume,
         log_every_updates=args.log_every,
+        early_stopping_patience=args.early_stopping,
     )
 
     if accelerator.is_main_process:

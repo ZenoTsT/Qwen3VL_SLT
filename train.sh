@@ -43,11 +43,11 @@ srun accelerate launch \
     --json /homes/ztesta/Qwen3VL_SLT/data/phoenix_dataset.json \
     --root_dir /work/tesi_ztesta/PHOENIX-2014-T-release-v3/PHOENIX-2014-T \
     --batch_size 1 \
-    --grad_accum 8 \
-    --epochs 5 \
+    --grad_accum 16 \
+    --epochs 30 \
     --num_workers 4 \
-    --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix/three_gpu_maxframe \
+    --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix/ \
     --orig_fps 25 \
-    --target_fps 6
+    --target_fps 8
 
 echo "END JOB $(date)"

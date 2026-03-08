@@ -35,7 +35,8 @@ def try_resume_best(model, optimizer, accelerator: Accelerator, output_dir: str,
     if resume_dir:
         ckpt_dir = resume_dir
     else:
-        ckpt_dir = os.path.join(output_dir, "best")
+        pass
+        # ckpt_dir = os.path.join(output_dir, "best")
 
     state_path = os.path.join(ckpt_dir, "training_state.pt")
     if not os.path.exists(state_path):
@@ -77,6 +78,7 @@ def train(
     output_dir: str,
     resume_dir: str,
     log_every_updates: int = 10,
+    early_stopping_patience: int = 3,
 ):
     # optional resume
     start_epoch, global_update, best_val = try_resume_best(
@@ -86,6 +88,8 @@ def train(
         output_dir=output_dir,
         resume_dir=resume_dir
     )
+    
+    epochs_without_improvement = 0
 
     model.train()
     optimizer.zero_grad(set_to_none=True)
@@ -138,6 +142,7 @@ def train(
         # save ONLY if improved
         if val_loss < best_val:
             best_val = val_loss
+            epochs_without_improvement = 0
             save_best_checkpoint(
                 model=model,
                 optimizer=optimizer,
@@ -149,6 +154,18 @@ def train(
             )
             if accelerator.is_main_process:
                 print(f"[ckpt] saved new BEST at epoch={epoch} val_loss={best_val:.4f}")
+        else:
+            epochs_without_improvement += 1
+            if accelerator.is_main_process:
+                print(
+                    f"[early_stopping] no improvement for "
+                    f"{epochs_without_improvement}/{early_stopping_patience} epoch(s)"
+                )
+
+            if epochs_without_improvement >= early_stopping_patience:
+                if accelerator.is_main_process:
+                    print(f"[early_stopping] stop at epoch={epoch}")
+                break
 
     accelerator.wait_for_everyone()
     
