@@ -48,11 +48,11 @@ GT  : deutschland liegt morgen unter hochdruckeinfluss der die wolken weitgehend
 PRED: am tag regnet es im norden und westen hier und da sonst ist es meist freundlich
 
 [test] METRICS
-[test] bleu1: 21.391966
-[test] bleu2: 12.830868
-[test] bleu3: 8.675948
-[test] bleu4: 6.365778
-[test] rougeL_f: 0.204172
+[test] bleu1: 21.596716
+[test] bleu2: 13.030769
+[test] bleu3: 8.854428
+[test] bleu4: 6.569580
+[test] rougeL_f: 0.206111
 [test] num_samples=642
 [test] END
 
@@ -70,3 +70,5 @@ lora_alpha = 32
 lora_dropout = 0.15
 
 target_fps = 8
+
+-----------------------------------------

@@ -48,6 +48,8 @@ srun accelerate launch \
     --num_workers 4 \
     --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix/ \
     --orig_fps 25 \
-    --target_fps 8
+    --target_fps 8 \
+    --model Qwen/Qwen3-VL-4B-Instruct \
+    --lora_r 8
 
 echo "END JOB $(date)"
