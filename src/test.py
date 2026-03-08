@@ -99,7 +99,6 @@ def main():
         max_new_tokens=args.max_new_tokens,
         num_beams=args.num_beams,
         limit=args.limit,
-        target_fps=args.target_fps,
     )
 
     if accelerator.is_main_process:
