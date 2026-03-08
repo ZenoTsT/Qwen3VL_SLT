@@ -35,7 +35,9 @@ def try_resume_best(model, optimizer, accelerator: Accelerator, output_dir: str,
     if resume_dir:
         ckpt_dir = resume_dir
     else:
-        pass
+        if accelerator.is_main_process:
+            print(f"[resume] No resume_dir provided, start from Epoch 0")
+        return 0, 0, float("inf")
         # ckpt_dir = os.path.join(output_dir, "best")
 
     state_path = os.path.join(ckpt_dir, "training_state.pt")
