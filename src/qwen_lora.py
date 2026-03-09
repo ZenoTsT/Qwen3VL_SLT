@@ -65,17 +65,17 @@ def collect_qwen3vl_lora_targets(model, scope: str):
             )):
                 targets.append(name)
 
-            elif name.startswith("model.visual.merger.") and name.endswith((
-                "linear_fc1",
-                "linear_fc2",
-            )):
-                targets.append(name)
+            # elif name.startswith("model.visual.merger.") and name.endswith((
+            #     "linear_fc1",
+            #     "linear_fc2",
+            # )):
+            #     targets.append(name)
 
-            elif name.startswith("model.visual.deepstack_merger_list.") and name.endswith((
-                "linear_fc1",
-                "linear_fc2",
-            )):
-                targets.append(name)
+            # elif name.startswith("model.visual.deepstack_merger_list.") and name.endswith((
+            #     "linear_fc1",
+            #     "linear_fc2",
+            # )):
+            #     targets.append(name)
 
     targets = sorted(set(targets))
 
@@ -113,13 +113,16 @@ def build_model_with_lora(
     
     # 2) Choose target modules
     target_modules = collect_qwen3vl_lora_targets(model, lora_scope)
-    if len(target_modules) == 0:
-        raise ValueError(f"No LoRA target modules found for lora_scope={lora_scope!r}")
+    text_targets = [x for x in target_modules if x.startswith("model.language_model.")]
+    vision_targets = [x for x in target_modules if x.startswith("model.visual.")]
     print(f"[lora] scope={lora_scope} | num target modules={len(target_modules)}")
-    for x in target_modules[:15]:
+    print(f"[lora] text targets={len(text_targets)} | vision targets={len(vision_targets)}")
+    print("[lora] sample TEXT targets:")
+    for x in text_targets[:8]:
         print("  ", x)
-    if len(target_modules) > 15:
-        print("  ...")
+    print("[lora] sample VISION targets:")
+    for x in vision_targets[:8]:
+        print("  ", x)
 
     # 3) Apply LoRA
     lora_config = LoraConfig(
