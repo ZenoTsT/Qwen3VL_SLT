@@ -9,31 +9,24 @@ def build_processor(model_name: str):
     tokenizer = processor.tokenizer
     return processor, tokenizer
 
-def _collect_qwen3vl_lora_targets(model, lora_scope: str):
-    """
-    Return the FULL module names to target with LoRA.
+import torch.nn as nn
 
-    lora_scope:
-      - "text"   -> only language_model attention/MLP
-      - "vision" -> only visual attention/MLP (+ merger)
-      - "joint"  -> both
-    """
-    if lora_scope == "all-linear":
-        return "all-linear"
-    
-    text_suffixes = (
-        "q_proj", "k_proj", "v_proj", "o_proj",
-        "gate_proj", "up_proj", "down_proj",
-    )
 
-    vision_suffixes = (
-        "attn.qkv",
-        "attn.proj",
-        "mlp.linear_fc1",
-        "mlp.linear_fc2",
-        "merger.linear_fc1",
-        "merger.linear_fc2",
-    )
+def collect_qwen3vl_lora_targets(model, scope: str):
+    """
+    Collect LoRA target modules for Qwen3-VL based on REAL module names.
+
+    scope:
+        - "text"   -> only language model linear layers
+        - "vision" -> only visual branch linear layers
+        - "joint"  -> both text + vision
+
+    Returns:
+        list[str] of full module names
+    """
+
+    if scope not in {"text", "vision", "joint"}:
+        raise ValueError(f"Invalid scope={scope!r}. Use 'text', 'vision', or 'joint'.")
 
     targets = []
 
@@ -41,15 +34,55 @@ def _collect_qwen3vl_lora_targets(model, lora_scope: str):
         if not isinstance(module, nn.Linear):
             continue
 
-        if lora_scope in ("text", "joint"):
-            if name.startswith("language_model.") and name.endswith(text_suffixes):
+        # Exclude lm_head explicitly
+        if name == "lm_head":
+            continue
+
+        # -------------------------
+        # TEXT BRANCH
+        # -------------------------
+        if scope in {"text", "joint"}:
+            if name.startswith("model.language_model.layers.") and name.endswith((
+                "self_attn.q_proj",
+                "self_attn.k_proj",
+                "self_attn.v_proj",
+                "self_attn.o_proj",
+                "mlp.gate_proj",
+                "mlp.up_proj",
+                "mlp.down_proj",
+            )):
                 targets.append(name)
 
-        if lora_scope in ("vision", "joint"):
-            if name.startswith("visual.") and name.endswith(vision_suffixes):
+        # -------------------------
+        # VISION BRANCH
+        # -------------------------
+        if scope in {"vision", "joint"}:
+            if name.startswith("model.visual.blocks.") and name.endswith((
+                "attn.qkv",
+                "attn.proj",
+                "mlp.linear_fc1",
+                "mlp.linear_fc2",
+            )):
                 targets.append(name)
 
-    return sorted(set(targets))
+            elif name.startswith("model.visual.merger.") and name.endswith((
+                "linear_fc1",
+                "linear_fc2",
+            )):
+                targets.append(name)
+
+            elif name.startswith("model.visual.deepstack_merger_list.") and name.endswith((
+                "linear_fc1",
+                "linear_fc2",
+            )):
+                targets.append(name)
+
+    targets = sorted(set(targets))
+
+    if len(targets) == 0:
+        raise ValueError(f"No LoRA target modules found for scope={scope!r}")
+
+    return targets
 
 
 def build_model_with_lora(
@@ -58,7 +91,7 @@ def build_model_with_lora(
     r: int = 16,
     lora_alpha: int = 32,
     lora_dropout: float = 0.05,
-    lora_scope: str = "all-linear",  # "text", "vision", "joint", "all-linear"
+    lora_scope: str = "joint",  # "text", "vision", "joint"
 ):
 
     #Loads Qwen3-VL and applies LoRA (trainable adapters).
@@ -78,7 +111,7 @@ def build_model_with_lora(
     model.config.use_cache = False       
     
     # 2) Choose target modules
-    target_modules = _collect_qwen3vl_lora_targets(model, lora_scope)
+    target_modules = collect_qwen3vl_lora_targets(model, lora_scope)
     if len(target_modules) == 0:
         raise ValueError(f"No LoRA target modules found for lora_scope={lora_scope!r}")
     print(f"[lora] scope={lora_scope} | num target modules={len(target_modules)}")

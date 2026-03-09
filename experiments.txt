@@ -71,25 +71,7 @@ lora_dropout = 0.15
 
 target_fps = 8
 
---- Example 0 ---
-GT  : regen und schnee lassen an den alpen in der nacht nach im norden und nordosten fallen hier und da schauer sonst ist das klar
-PRED: in der nacht regnet es im süden und osten hier und da sonst ist es meist klar
-
---- Example 1 ---
-GT  : am donnerstag regen in der nordhälfte in der südhälfte mal sonne mal wolken ähnliches wetter dann auch am freitag
-PRED: am tag im norden und nordwesten hier und da schauer sonst meist freundlich
-
---- Example 2 ---
-GT  : vom nordmeer zieht ein kräftiges tief heran und bringt uns ab den morgenstunden heftige schneefälle zum teil auch gefrierenden regen
-PRED: im norden und westen gibt es heute nacht noch einzelne schauer und gewitter sonst ist es meist klar
-
---- Example 3 ---
-GT  : sonnig geht es auch ins wochenende samstag ein herrlicher tag mit temperaturen bis siebzehn grad hier im westen
-PRED: im süden und osten deutschlands bleibt es meist freundlich
-
---- Example 4 ---
-GT  : deutschland liegt morgen unter hochdruckeinfluss der die wolken weitgehend vertreibt
-PRED: im norden und nordwesten gibt es heute nacht noch schauer und gewitter
+Results
 
 [val] epoch=0 avg_loss=1.9018 (best=inf)
 [val] epoch=1 avg_loss=1.6997 (best=1.9018)
@@ -100,12 +82,32 @@ PRED: im norden und nordwesten gibt es heute nacht noch schauer und gewitter
 [val] epoch=6 avg_loss=1.6074 (best=1.5788)
 [val] epoch=7 avg_loss=1.6354 (best=1.5788)
 
+--- Example 0 ---
+GT  : regen und schnee lassen an den alpen in der nacht nach im norden und nordosten fallen hier und da schauer sonst ist das klar
+PRED: heute nacht regnet es im norden und osten hier und da sonst ist es meist klar und trocken
+
+--- Example 1 ---
+GT  : am donnerstag regen in der nordhälfte in der südhälfte mal sonne mal wolken ähnliches wetter dann auch am freitag
+PRED: am tag im norden und nordwesten hier und da schauer sonst meist freundlich und trocken
+
+--- Example 2 ---
+GT  : vom nordmeer zieht ein kräftiges tief heran und bringt uns ab den morgenstunden heftige schneefälle zum teil auch gefrierenden regen
+PRED: im norden und westen gibt es heute nacht noch einzelne schauer und gewitter sonst ist es meist klar
+
+--- Example 3 ---
+GT  : sonnig geht es auch ins wochenende samstag ein herrlicher tag mit temperaturen bis siebzehn grad hier im westen
+PRED: und die temperaturen die haben wir auch im westen und auch im süden und auch im norden
+
+--- Example 4 ---
+GT  : deutschland liegt morgen unter hochdruckeinfluss der die wolken weitgehend vertreibt
+PRED: im norden und nordwesten gibt es heute nacht noch schauer und gewitter
+
 [test] METRICS
-[test] bleu1: 19.296014
-[test] bleu2: 11.315475
-[test] bleu3: 7.957001
-[test] bleu4: 6.118170
-[test] rougeL_f: 0.187885
+[test] bleu1: 21.049962
+[test] bleu2: 12.653546
+[test] bleu3: 8.893014
+[test] bleu4: 6.826210
+[test] rougeL_f: 0.200906
 [test] num_samples=642
 [test] END
 

@@ -31,6 +31,7 @@ def parse_args():
     parser.add_argument("--lora_r", type=int, default=16)
     parser.add_argument("--lora_alpha", type=int, default=32)
     parser.add_argument("--lora_dropout", type=float, default=0.15)
+    parser.add_argument("--lora_scope", type=str, default="joint")
 
     # logging
     parser.add_argument("--log_every", type=int, default=10)
@@ -95,6 +96,7 @@ def main():
         r=args.lora_r,
         lora_alpha=args.lora_alpha,
         lora_dropout=args.lora_dropout,
+        lora_scope=args.lora_scope,
     )
 
     if accelerator.is_main_process:

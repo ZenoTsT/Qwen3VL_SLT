@@ -22,33 +22,34 @@ from inference import inference
 
 
 def parse_args():
-    p = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
-    p.add_argument("--json", required=True)
-    p.add_argument("--root_dir", default="")
+    parser.add_argument("--json", required=True)
+    parser.add_argument("--root_dir", default="")
 
-    p.add_argument("--model", default="Qwen/Qwen3-VL-2B-Instruct")
+    parser.add_argument("--model", default="Qwen/Qwen3-VL-2B-Instruct")
 
     # fps sampling
-    p.add_argument("--orig_fps", type=int, default=25)
-    p.add_argument("--target_fps", type=int, default=0)
+    parser.add_argument("--orig_fps", type=int, default=25)
+    parser.add_argument("--target_fps", type=int, default=0)
 
     # lora (must match training config, or at least be compatible)
-    p.add_argument("--lora_r", type=int, default=16)
-    p.add_argument("--lora_alpha", type=int, default=32)
-    p.add_argument("--lora_dropout", type=float, default=0.05)
+    parser.add_argument("--lora_r", type=int, default=16)
+    parser.add_argument("--lora_alpha", type=int, default=32)
+    parser.add_argument("--lora_dropout", type=float, default=0.05)
+    parser.add_argument("--lora_scope", type=str, default="joint")
 
     # checkpoint dir (the folder containing adapter weights)
-    p.add_argument("--ckpt_dir", required=True)
+    parser.add_argument("--ckpt_dir", required=True)
 
     # generation
-    p.add_argument("--max_new_tokens", type=int, default=128)
-    p.add_argument("--num_beams", type=int, default=1)
+    parser.add_argument("--max_new_tokens", type=int, default=128)
+    parser.add_argument("--num_beams", type=int, default=1)
 
     # debug
-    p.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--limit", type=int, default=0)
 
-    return p.parse_args()
+    return parser.parse_args()
 
 
 def main():
@@ -81,6 +82,7 @@ def main():
         r=args.lora_r,
         lora_alpha=args.lora_alpha,
         lora_dropout=args.lora_dropout,
+        lora_scope=args.lora_scope,
     )
 
     # Prepare (even if single GPU, this keeps the same style)
