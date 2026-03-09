@@ -2,7 +2,7 @@
 #SBATCH --job-name=train_phoenix
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH --gres=gpu:3
+#SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --time=24:00:00
@@ -37,7 +37,7 @@ export HF_HOME=/work/tesi_ztesta/hf_cache
 # -------------------------
 
 srun accelerate launch \
-    --num_processes 3 \
+    --num_processes 2 \
     --mixed_precision bf16 \
     src/train.py \
     --json /homes/ztesta/Qwen3VL_SLT/data/phoenix_dataset.json \
@@ -46,10 +46,13 @@ srun accelerate launch \
     --grad_accum 16 \
     --epochs 30 \
     --num_workers 4 \
-    --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix/ \
+    --output_dir /work/tesi_ztesta/qwen3vl_checkpoints_phoenix/same_but_r16 \
     --orig_fps 25 \
     --target_fps 8 \
     --model Qwen/Qwen3-VL-4B-Instruct \
-    --lora_r 8
+    --lora_r 16 \
+    --lora_dropout 0.15 \
+    --lora_scope joint \
+
 
 echo "END JOB $(date)"
