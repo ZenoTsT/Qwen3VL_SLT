@@ -50,7 +50,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True) # Prova
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=False, static_graph=True) # Prova
     accelerator = Accelerator(mixed_precision="bf16", kwargs_handlers=[ddp_kwargs])
 
     if accelerator.is_main_process:

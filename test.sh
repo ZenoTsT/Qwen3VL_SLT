@@ -48,4 +48,5 @@ srun accelerate launch \
     --max_new_tokens 128 \
     --num_beams 1 \
     --model Qwen/Qwen3-VL-4B-Instruct \
+    --lora_r 8
     
