@@ -4,7 +4,7 @@ MODEL Qwen3-VL-2B-Instruct
 
 -----------------------------------------
 
-EXPERIMENT 1
+EXPERIMENT 1 (LoRA pre-visual)
 
 batch_size = 1
 grad_accum = 8
@@ -58,7 +58,7 @@ PRED: am tag regnet es im norden und westen hier und da sonst ist es meist freun
 
 -----------------------------------------
 
-EXPERIMENT 2
+EXPERIMENT 2 (LoRA pre-visual)
 
 batch_size = 1
 grad_accum = 16
@@ -117,7 +117,7 @@ MODEL Qwen3-VL-4B-Instruct
 
 -----------------------------------------
 
-EXPERIMENT 3
+EXPERIMENT 3 (LoRA joint)
 
 batch_size = 1
 grad_accum = 16
@@ -131,11 +131,3 @@ lora_dropout = 0.15
 target_fps = 8
 
 Results
-
-[val] epoch=0 avg_loss=1.7297 (best=inf)
-[val] epoch=1 avg_loss=1.5747 (best=1.7297)
-[val] epoch=2 avg_loss=1.5076 (best=1.5747)
-[val] epoch=3 avg_loss=1.4841 (best=1.5076) 
-[val] epoch=4 avg_loss=1.4883 (best=1.4841) -> Overfit
-[val] epoch=5 avg_loss=1.5047 (best=1.4841)
-[val] epoch=6 avg_loss=1.5488 (best=1.4841)

@@ -107,8 +107,9 @@ def build_model_with_lora(
         torch_dtype=dtype,
         attn_implementation="flash_attention_2",
     )
-    model.gradient_checkpointing_enable()  
-    model.config.use_cache = False       
+    model.gradient_checkpointing_enable()   # Prova
+    model.enable_input_require_grads()      # Prova
+    model.config.use_cache = False          # Prova 
     
     # 2) Choose target modules
     target_modules = collect_qwen3vl_lora_targets(model, lora_scope)
