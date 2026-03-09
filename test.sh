@@ -46,4 +46,6 @@ srun accelerate launch \
     --orig_fps 25 \
     --target_fps 8 \
     --max_new_tokens 128 \
-    --num_beams 4
+    --num_beams 1 \
+    --model Qwen/Qwen3-VL-4B-Instruct \
+    
