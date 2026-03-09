@@ -2,7 +2,7 @@ import argparse
 import torch
 import os
 
-from accelerate import Accelerator
+from accelerate import Accelerator, DistributedDataParallelKwargs
 from torch.utils.data import DataLoader
 
 from data import load_split, SLTDataset, make_collate_fn
@@ -50,7 +50,8 @@ def parse_args():
 def main():
     args = parse_args()
 
-    accelerator = Accelerator(mixed_precision="bf16")
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True) # Prova
+    accelerator = Accelerator(mixed_precision="bf16", kwargs_handlers=[ddp_kwargs])
 
     if accelerator.is_main_process:
         os.makedirs(args.output_dir, exist_ok=True)
